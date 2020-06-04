@@ -5,7 +5,8 @@ from copy import deepcopy
 
 def localsearch(set_count, item_count, sets):
 	opt, solution = greedy(set_count, item_count, deepcopy(sets))
-	for it in range(1000):
+	num_iter = 10000
+	for it in range(num_iter):
 		move = random_withdraw(set_count, min(100, sum(solution) * 4))
 		tmp_sets = []
 		items = set(range(item_count))
