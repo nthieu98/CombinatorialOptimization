@@ -4,6 +4,7 @@
 from collections import namedtuple
 import copy
 import gc
+from ortools.sat.python import cp_model
 
 Item = namedtuple("Item", ['index', 'value', 'weight'])
 capacity = 0
@@ -133,6 +134,49 @@ def branchAndBound(capacity, items):
 		gc.collect()
 	return maxValue, maxTakens
 
+def cp_ortools(items, taken, capacity):
+    value = 0
+    weight = 0
+    opt = 1
+    model = cp_model.CpModel()
+    t = []
+    w = []
+    v = []
+    for i in range(len(items)):
+        item = items[i]
+        t.append(model.NewIntVar(0, 1, 'taken_%i' % i))
+        w.append(t[i] * item.weight)
+        v.append(t[i] * item.value)
+    model.Add(sum(w) <= capacity)
+    model.Maximize(sum(v))
+    solver = cp_model.CpSolver()
+    status = solver.Solve(model)
+    if status == cp_model.OPTIMAL:
+        for i in range(len(t)):
+            taken[i] = solver.Value(t[i])
+        value = int(solver.ObjectiveValue())
+    else:
+        value, taken, opt, weight = greedy_by_avarage_value(items, taken, capacity)
+    return value, taken, opt, weight
+  
+def greedy_by_avarage_value(items, taken, capacity):
+    def key(item):
+        return item.value / item.weight
+
+    items.sort(key=key, reverse=True)
+
+    value = 0
+    weight = 0
+
+    for i in range(len(items)):
+        item = items[i]
+        if weight + item.weight <= capacity:
+            value += item.weight
+            weight += item.weight
+            taken[item.index] = 1
+
+    return value, taken, 0, weight
+
 def assert_sol(K, items, opt_value, sol):
 	v = 0
 	w = 0
@@ -162,13 +206,16 @@ def solve_it(input_data):
 		
 	taken = [0]*int(len(items))
 	ansTaken = [0]*int(len(items))
-	if len(items) * capacity <= 20000000:
-		value, taken = dynamicProgramming(capacity, items)
-	else:
-		value, taken = branchAndBound(capacity, items)
-	output_data = str(value) + ' ' + str(1) + '\\n'
+	# if len(items) * capacity <= 20000000:
+	# 	value, taken = dynamicProgramming(capacity, items)
+	# else:
+	# 	value, taken = branchAndBound(capacity, items)
+	# value, taken, opt, weigths = greedy_by_avarage_value(items, taken, capacity)
+	value, taken, opt, weigths = cp_ortools(items, taken, capacity)
+	# print(taken)
+	output_data = str(value) + ' ' + str(1) + '\n'
 	output_data += ' '.join(map(str, taken))
-	gc.collect()
+	# gc.collect()
 	# f = open("result/4.txt", "x")
 	# f.write(output_data)
 	# f.close()
